@@ -156,19 +156,69 @@ class NexusConfigureCommand extends Command
 
         $this->newLine();
 
+        // Advanced configuration options
+        $useAdvanced = confirm('Would you like to configure advanced global defaults? (Recommended for multiple queues)', false);
+        $globalDefaults = [];
+
+        if ($useAdvanced) {
+            info('⚙️  Global Default Settings:');
+            $this->line('   These will be used as defaults for all queues. You can still override per queue.');
+            $this->newLine();
+
+            $globalDefaults = [
+                'timeout' => (int) text(
+                    label: 'Default timeout per job (seconds)',
+                    default: '60',
+                    hint: 'How long a job can run before timing out'
+                ),
+                'memory' => (int) text(
+                    label: 'Default memory limit per worker (MB)',
+                    default: '128',
+                    hint: 'Worker will restart after hitting this limit'
+                ),
+                'tries' => (int) text(
+                    label: 'Default max retry attempts',
+                    default: '3',
+                    hint: 'Number of times to retry failed jobs'
+                ),
+                'sleep' => (int) text(
+                    label: 'Default sleep time between jobs (seconds)',
+                    default: '3',
+                    hint: 'How long to wait when no jobs are available'
+                ),
+                'max_jobs' => (int) text(
+                    label: 'Default max jobs per worker before restart',
+                    default: '1000',
+                    hint: 'Worker restarts after processing this many jobs'
+                ),
+                'max_time' => (int) text(
+                    label: 'Default max worker runtime (seconds)',
+                    default: '3600',
+                    hint: 'Worker restarts after running for this long'
+                ),
+            ];
+            $this->newLine();
+        }
+
+        $useSimplified = $useAdvanced ? confirm('Use simplified configuration mode? (Only configure worker count per queue)', true) : false;
+
         // Configure each selected queue
         $configurations = [];
         foreach ($selectedQueues as $queueName) {
             $queue = collect($discoveredQueues)->firstWhere('name', $queueName);
-            $config = $this->configureQueue($queueName, $queue);
+            $config = $this->configureQueue($queueName, $queue, $globalDefaults, $useSimplified);
             $configurations[$queueName] = $config;
         }
 
         // Show final configuration
         info('📝 Final Configuration:');
         foreach ($configurations as $name => $config) {
-            $this->line("<info>{$name}:</info> {$config['processes']} process(es), " .
-                       "timeout: {$config['timeout']}s, memory: {$config['memory']}MB");
+            if ($useSimplified) {
+                $this->line("<info>{$name}:</info> {$config['processes']} process(es)");
+            } else {
+                $this->line("<info>{$name}:</info> {$config['processes']} process(es), " .
+                           "timeout: {$config['timeout']}s, memory: {$config['memory']}MB");
+            }
         }
 
         if (confirm('Save this configuration?', true)) {
@@ -190,7 +240,7 @@ class NexusConfigureCommand extends Command
     /**
      * Configure a single queue interactively.
      */
-    protected function configureQueue(string $queueName, array $queueInfo): array
+    protected function configureQueue(string $queueName, array $queueInfo, array $globalDefaults = [], bool $useSimplified = false): array
     {
         info("Configuring queue: {$queueName}");
 
@@ -207,29 +257,58 @@ class NexusConfigureCommand extends Command
         // Get suggested defaults
         $suggested = $this->discoveryService->getDefaultConfigForQueue($queueName, $queueInfo);
 
+        // Merge with global defaults if provided
+        if (! empty($globalDefaults)) {
+            $suggested = array_merge($suggested, $globalDefaults);
+        }
+
         $processes = (int) text(
             label: 'Number of worker processes',
             default: (string) $suggested['processes'],
             hint: 'More processes = higher concurrency'
         );
 
-        $timeout = (int) text(
-            label: 'Timeout per job (seconds)',
-            default: (string) $suggested['timeout'],
-            hint: 'How long a job can run before timing out'
-        );
+        if ($useSimplified) {
+            // In simplified mode, only ask for worker count and use defaults for everything else
+            return [
+                'queue' => $queueName,
+                'connection' => $suggested['connection'],
+                'tries' => $suggested['tries'],
+                'timeout' => $suggested['timeout'],
+                'sleep' => $suggested['sleep'],
+                'memory' => $suggested['memory'],
+                'processes' => $processes,
+                'max_jobs' => $suggested['max_jobs'],
+                'max_time' => $suggested['max_time'],
+            ];
+        }
 
-        $memory = (int) text(
-            label: 'Memory limit per worker (MB)',
-            default: (string) $suggested['memory'],
-            hint: 'Worker will restart after hitting this limit'
-        );
+        // Full configuration mode
+        $allowOverride = ! empty($globalDefaults) ? confirm('Override global defaults for this queue?', false) : true;
 
-        $tries = (int) text(
-            label: 'Max retry attempts',
-            default: (string) $suggested['tries'],
-            hint: 'Number of times to retry failed jobs'
-        );
+        $timeout = $suggested['timeout'];
+        $memory = $suggested['memory'];
+        $tries = $suggested['tries'];
+
+        if ($allowOverride || empty($globalDefaults)) {
+            $timeout = (int) text(
+                label: 'Timeout per job (seconds)',
+                default: (string) $suggested['timeout'],
+                hint: 'How long a job can run before timing out'
+            );
+
+            $memory = (int) text(
+                label: 'Memory limit per worker (MB)',
+                default: (string) $suggested['memory'],
+                hint: 'Worker will restart after hitting this limit'
+            );
+
+            $tries = (int) text(
+                label: 'Max retry attempts',
+                default: (string) $suggested['tries'],
+                hint: 'Number of times to retry failed jobs'
+            );
+        }
 
         return [
             'queue' => $queueName,

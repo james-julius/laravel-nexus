@@ -93,6 +93,21 @@ class NexusWorkCommand extends Command
     {
         $this->info('🚀 Starting Laravel Nexus...');
 
+        // Validate configuration exists
+        if (empty($this->config)) {
+            $this->error('❌ No Nexus configuration found!');
+            $this->line('💡 Run <comment>php artisan nexus:configure</comment> to set up your workers');
+
+            return 1;
+        }
+
+        if (empty($this->config['workers'])) {
+            $this->error('❌ No workers configured!');
+            $this->line('💡 Run <comment>php artisan nexus:configure</comment> to set up your workers');
+
+            return 1;
+        }
+
         // Show helpful hint about available options on first run
         if (! $this->option('log') && ! $this->option('watch')) {
             $this->line('💡 <comment>Tip:</comment> Use <comment>--log</comment> for live logs, <comment>--watch</comment> for file watching + auto-reload, or <comment>--detailed</comment> for detailed job logs');
@@ -129,6 +144,12 @@ class NexusWorkCommand extends Command
             $this->startWorker($name, $config);
         }
 
+        if (empty($this->processes)) {
+            $this->error('❌ No workers started! Check your configuration.');
+
+            return 1;
+        }
+
         $this->info('✅ Started ' . count($this->processes) . ' queue workers');
         $this->displayWorkerTable();
 
@@ -148,22 +169,44 @@ class NexusWorkCommand extends Command
     {
         $processCount = $config['processes'] ?? 1;
 
+        // Validate worker configuration
+        $requiredFields = ['queue', 'connection', 'tries', 'timeout', 'sleep', 'memory', 'max_jobs', 'max_time'];
+        foreach ($requiredFields as $field) {
+            if (! isset($config[$field])) {
+                $this->warn("⚠️  Missing configuration field '{$field}' for worker '{$name}'. Using defaults.");
+            }
+        }
+
         for ($i = 1; $i <= $processCount; $i++) {
             $processName = $processCount > 1 ? "{$name}-{$i}" : $name;
-            $command = $this->buildWorkerCommand($config, $processName);
 
-            $process = new SymfonyProcess($command);
-            $process->setTimeout(null);
-            $process->start();
+            try {
+                $command = $this->buildWorkerCommand($config, $processName);
 
-            $this->processes[$processName] = [
-                'process' => $process,
-                'config' => $config,
-                'name' => $processName,
-                'started_at' => now(),
-            ];
+                $this->line('  🔧 Command: <comment>' . implode(' ', array_slice($command, 0, 5)) . '...</comment>');
 
-            $this->line("  → Started worker: <info>{$processName}</info> (PID: {$process->getPid()})");
+                $process = new SymfonyProcess($command);
+                $process->setTimeout(null);
+                $process->start();
+
+                if (! $process->isRunning()) {
+                    $this->error("❌ Failed to start worker: {$processName}");
+                    $this->line('Error output: ' . $process->getErrorOutput());
+
+                    continue;
+                }
+
+                $this->processes[$processName] = [
+                    'process' => $process,
+                    'config' => $config,
+                    'name' => $processName,
+                    'started_at' => now(),
+                ];
+
+                $this->line("  → Started worker: <info>{$processName}</info> (PID: {$process->getPid()})");
+            } catch (\Exception $e) {
+                $this->error("❌ Exception starting worker {$processName}: " . $e->getMessage());
+            }
         }
     }
 
@@ -172,6 +215,20 @@ class NexusWorkCommand extends Command
      */
     protected function buildWorkerCommand(array $config, string $processName): array
     {
+        // Set defaults for missing configuration values
+        $defaults = [
+            'connection' => env('QUEUE_CONNECTION', 'database'),
+            'queue' => 'default',
+            'tries' => 3,
+            'timeout' => 60,
+            'sleep' => 3,
+            'memory' => 128,
+            'max_jobs' => 1000,
+            'max_time' => 3600,
+        ];
+
+        $config = array_merge($defaults, $config);
+
         $command = [
             PHP_BINARY,
             'artisan',
@@ -184,7 +241,7 @@ class NexusWorkCommand extends Command
             '--memory=' . $config['memory'],
             '--max-jobs=' . $config['max_jobs'],
             '--max-time=' . $config['max_time'],
-            '--name=' . $this->config['prefix'] . ':' . $processName,
+            '--name=' . ($this->config['prefix'] ?? 'nexus') . ':' . $processName,
         ];
 
         // Add environment-specific options

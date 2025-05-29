@@ -80,7 +80,7 @@ composer format
 Install the package via Composer:
 
 ```bash
-composer require jamesjulius/laravel-nexus
+composer require jamesjulius/laravel-nexus --dev
 ```
 
 The package will automatically register its service provider.
@@ -245,6 +245,91 @@ return [
     'auto_restart' => true,
     'restart_signal_file' => storage_path('framework/cache/laravel-queue-restart'),
 ];
+```
+
+### Advanced Configuration Options
+
+Laravel Nexus now offers **advanced configuration modes** to reduce repetitive configuration across multiple queues:
+
+#### Global Defaults Mode
+
+When configuring multiple queues, you can set global defaults that apply to all workers:
+
+```bash
+php artisan nexus:configure
+# Select your queues
+# Choose "Yes" for "Would you like to configure advanced global defaults?"
+```
+
+This lets you set:
+- Default timeout per job (seconds)
+- Default memory limit per worker (MB)
+- Default max retry attempts
+- Default sleep time between jobs
+- Default max jobs per worker before restart
+- Default max worker runtime
+
+#### Simplified Configuration Mode
+
+For teams that don't want to configure timeout/memory for every queue:
+
+```bash
+php artisan nexus:configure
+# Enable advanced global defaults
+# Choose "Yes" for "Use simplified configuration mode?"
+```
+
+In simplified mode, you only configure:
+- **Worker count per queue** (the most important setting)
+- Everything else uses smart defaults or your global settings
+
+This is perfect when you want to:
+- 🚀 **Quick setup** - Just set worker counts, use smart defaults
+- 🎯 **Focus on scaling** - Configure what matters most (process count)
+- 📊 **Consistent settings** - Same timeout/memory across all queues
+
+#### Configuration Flow Example
+
+```
+⚙️  Laravel Nexus Configuration
+🔍 Discovering queues...
+
+📋 Queue Selection:
+✅ default (5 job types)
+✅ mail (2 job types)
+✅ broadcasting (3 job types)
+
+Would you like to configure advanced global defaults? (yes)
+
+⚙️  Global Default Settings:
+Default timeout per job (seconds): 120
+Default memory limit per worker (MB): 256
+Default max retry attempts: 3
+Default sleep time between jobs (seconds): 3
+Default max jobs per worker before restart: 1000
+Default max worker runtime (seconds): 3600
+
+Use simplified configuration mode? (yes)
+
+Configuring queue: default
+Number of worker processes: 2
+
+Configuring queue: mail
+Number of worker processes: 1
+
+Configuring queue: broadcasting
+Number of worker processes: 1
+
+📝 Final Configuration:
+default: 2 process(es)
+mail: 1 process(es)
+broadcasting: 1 process(es)
+
+Save this configuration? (yes)
+✅ Configuration saved to config/nexus.php
+
+Start workers now? (yes)
+🚀 Starting workers...
 ```
 
 ## Queue Auto-Discovery
