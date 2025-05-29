@@ -121,7 +121,7 @@ class NexusConfigureCommand extends Command
         })->toArray();
 
         // Add "Select All" option at the top for convenience
-        $allQueuesOption = ['__ALL__' => '🎯 Select All Queues (' . count($queueOptions) . ' total)'];
+        $allQueuesOption = ['__ALL__' => '🎯 Select All Queues ('.count($queueOptions).' total)'];
         $selectOptions = $allQueuesOption + $queueOptions;
 
         info('📋 Queue Selection:');
@@ -140,11 +140,11 @@ class NexusConfigureCommand extends Command
         // Handle "Select All" option
         if (in_array('__ALL__', $selected)) {
             $selectedQueues = array_keys($queueOptions);
-            info('✅ Selected all ' . count($selectedQueues) . ' queues');
+            info('✅ Selected all '.count($selectedQueues).' queues');
         } else {
             $selectedQueues = array_filter($selected, fn ($item) => $item !== '__ALL__');
             if (! empty($selectedQueues)) {
-                info('✅ Selected ' . count($selectedQueues) . ' queue(s): ' . implode(', ', $selectedQueues));
+                info('✅ Selected '.count($selectedQueues).' queue(s): '.implode(', ', $selectedQueues));
             }
         }
 
@@ -180,17 +180,19 @@ class NexusConfigureCommand extends Command
             if ($shouldConsolidate) {
                 // Remove the consolidated queues from selectedQueues
                 $selectedQueues = array_diff($selectedQueues, $queuesToConsolidate);
-                info('✅ Consolidated ' . implode(', ', $selectedConsolidationQueues) . ' into default queue');
+                $selectedQueues = array_values($selectedQueues); // Reindex array to avoid issues
+                info('✅ Consolidated '.implode(', ', $selectedConsolidationQueues).' into default queue');
+                info('📋 Remaining queues to configure: '.implode(', ', $selectedQueues));
                 $this->newLine();
             }
         }
 
-        // Step 1: Configure process counts for all queues first
-        info('📊 Step 1: Configure Worker Processes');
-        $this->line('   Set the number of worker processes for each queue');
+        // Step 1: Configure each queue individually
+        info('📊 Queue Configuration');
+        $this->line('   Configure worker processes and advanced settings for each queue');
         $this->newLine();
 
-        $queueProcesses = [];
+        $configurations = [];
         foreach ($selectedQueues as $queueName) {
             $queue = collect($discoveredQueues)->firstWhere('name', $queueName);
             $suggested = $this->discoveryService->getDefaultConfigForQueue($queueName, $queue);
@@ -200,7 +202,7 @@ class NexusConfigureCommand extends Command
                 $extraProcesses = count($selectedConsolidationQueues);
                 $suggested['processes'] = $suggested['processes'] + $extraProcesses;
 
-                info("Queue: {$queueName} (+ consolidated: " . implode(', ', $selectedConsolidationQueues) . ')');
+                info("Queue: {$queueName} (+ consolidated: ".implode(', ', $selectedConsolidationQueues).')');
                 $this->line('💡 Suggested process count increased to handle consolidated queues');
             } else {
                 info("Queue: {$queueName}");
@@ -212,44 +214,106 @@ class NexusConfigureCommand extends Command
                     $this->line("  • {$job}");
                 }
                 if (count($queue['jobs']) > 3) {
-                    $this->line('  • ... and ' . (count($queue['jobs']) - 3) . ' more');
+                    $this->line('  • ... and '.(count($queue['jobs']) - 3).' more');
                 }
             }
 
+            // Step 1: Ask for worker processes
             $processes = (int) text(
                 label: 'Number of worker processes',
                 default: (string) $suggested['processes'],
                 hint: 'More processes = higher concurrency'
             );
 
-            $queueProcesses[$queueName] = $processes;
-            $this->newLine();
-        }
+            // Step 2: Ask if they want advanced settings for this queue
+            $configureAdvanced = confirm(
+                "Set advanced options for '{$queueName}'? (Otherwise use defaults)",
+                false
+            );
 
-        // Step 2: Ask if they want advanced options for each queue
-        info('⚙️  Step 2: Advanced Configuration');
-        $this->line('   You can now configure advanced options for each queue individually');
-        $this->newLine();
+            if (! $configureAdvanced) {
+                // Use defaults and continue to next queue
+                info("✅ Using defaults for {$queueName}");
 
-        // Configure each selected queue with the new flow
-        $configurations = [];
-        foreach ($selectedQueues as $queueName) {
-            $queue = collect($discoveredQueues)->firstWhere('name', $queueName);
-            $processes = $queueProcesses[$queueName];
+                $config = [
+                    'queue' => $queueName,
+                    'connection' => $suggested['connection'],
+                    'tries' => $suggested['tries'],
+                    'timeout' => $suggested['timeout'],
+                    'sleep' => $suggested['sleep'],
+                    'memory' => $suggested['memory'],
+                    'processes' => $processes,
+                    'max_jobs' => $suggested['max_jobs'],
+                    'max_time' => $suggested['max_time'],
+                ];
+            } else {
+                // Configure advanced options for this queue
+                info("⚙️ Advanced configuration for: {$queueName}");
 
-            $config = $this->configureQueueAdvanced($queueName, $queue, [], $processes);
+                $timeout = (int) text(
+                    label: 'Timeout per job (seconds)',
+                    default: (string) $suggested['timeout'],
+                    hint: 'How long a job can run before timing out'
+                );
+
+                $memory = (int) text(
+                    label: 'Memory limit per worker (MB)',
+                    default: (string) $suggested['memory'],
+                    hint: 'Worker will restart after hitting this limit'
+                );
+
+                $tries = (int) text(
+                    label: 'Max retry attempts',
+                    default: (string) $suggested['tries'],
+                    hint: 'Number of times to retry failed jobs'
+                );
+
+                $sleep = (int) text(
+                    label: 'Sleep time between jobs (seconds)',
+                    default: (string) $suggested['sleep'],
+                    hint: 'How long to wait when no jobs are available'
+                );
+
+                $maxJobs = (int) text(
+                    label: 'Max jobs per worker before restart',
+                    default: (string) $suggested['max_jobs'],
+                    hint: 'Worker restarts after processing this many jobs'
+                );
+
+                $maxTime = (int) text(
+                    label: 'Max worker runtime (seconds)',
+                    default: (string) $suggested['max_time'],
+                    hint: 'Worker restarts after running for this long'
+                );
+
+                $config = [
+                    'queue' => $queueName,
+                    'connection' => $suggested['connection'],
+                    'tries' => $tries,
+                    'timeout' => $timeout,
+                    'sleep' => $sleep,
+                    'memory' => $memory,
+                    'processes' => $processes,
+                    'max_jobs' => $maxJobs,
+                    'max_time' => $maxTime,
+                ];
+
+                info("✅ Advanced configuration completed for {$queueName}");
+            }
+
             $configurations[$queueName] = $config;
+            $this->newLine();
         }
 
         // Show final configuration
         info('📝 Final Configuration:');
         foreach ($configurations as $name => $config) {
-            $configLine = "<info>{$name}:</info> {$config['processes']} process(es), " .
+            $configLine = "<info>{$name}:</info> {$config['processes']} process(es), ".
                          "timeout: {$config['timeout']}s, memory: {$config['memory']}MB";
 
             // Add note about consolidated queues
             if ($name === 'default' && $shouldConsolidate && ! empty($selectedConsolidationQueues)) {
-                $configLine .= ' (+ handling: ' . implode(', ', $selectedConsolidationQueues) . ')';
+                $configLine .= ' (+ handling: '.implode(', ', $selectedConsolidationQueues).')';
             }
 
             $this->line($configLine);
@@ -272,116 +336,10 @@ class NexusConfigureCommand extends Command
     }
 
     /**
-     * Configure a single queue with the new advanced flow.
-     */
-    protected function configureQueueAdvanced(string $queueName, array $queueInfo, array $globalDefaults = [], int $processes = 1): array
-    {
-        // Get suggested defaults
-        $suggested = $this->discoveryService->getDefaultConfigForQueue($queueName, $queueInfo);
-
-        // Merge with global defaults if provided
-        if (! empty($globalDefaults)) {
-            $suggested = array_merge($suggested, $globalDefaults);
-        }
-
-        info("Configure advanced options for: {$queueName}");
-
-        // Ask if they want to configure advanced options for this specific queue
-        $configureAdvanced = confirm(
-            "Set advanced options for '{$queueName}'? (Otherwise use defaults)",
-            false
-        );
-
-        if (! $configureAdvanced) {
-            // Use defaults and continue to next queue
-            info("✅ Using defaults for {$queueName}");
-            $this->newLine();
-
-            return [
-                'queue' => $queueName,
-                'connection' => $suggested['connection'],
-                'tries' => $suggested['tries'],
-                'timeout' => $suggested['timeout'],
-                'sleep' => $suggested['sleep'],
-                'memory' => $suggested['memory'],
-                'processes' => $processes,
-                'max_jobs' => $suggested['max_jobs'],
-                'max_time' => $suggested['max_time'],
-            ];
-        }
-
-        // Configure advanced options for this queue
-        info("⚙️ Advanced configuration for: {$queueName}");
-
-        $timeout = (int) text(
-            label: 'Timeout per job (seconds)',
-            default: (string) $suggested['timeout'],
-            hint: 'How long a job can run before timing out'
-        );
-
-        $memory = (int) text(
-            label: 'Memory limit per worker (MB)',
-            default: (string) $suggested['memory'],
-            hint: 'Worker will restart after hitting this limit'
-        );
-
-        $tries = (int) text(
-            label: 'Max retry attempts',
-            default: (string) $suggested['tries'],
-            hint: 'Number of times to retry failed jobs'
-        );
-
-        $sleep = (int) text(
-            label: 'Sleep time between jobs (seconds)',
-            default: (string) $suggested['sleep'],
-            hint: 'How long to wait when no jobs are available'
-        );
-
-        $maxJobs = (int) text(
-            label: 'Max jobs per worker before restart',
-            default: (string) $suggested['max_jobs'],
-            hint: 'Worker restarts after processing this many jobs'
-        );
-
-        $maxTime = (int) text(
-            label: 'Max worker runtime (seconds)',
-            default: (string) $suggested['max_time'],
-            hint: 'Worker restarts after running for this long'
-        );
-
-        info("✅ Advanced configuration completed for {$queueName}");
-        $this->newLine();
-
-        return [
-            'queue' => $queueName,
-            'connection' => $suggested['connection'],
-            'tries' => $tries,
-            'timeout' => $timeout,
-            'sleep' => $sleep,
-            'memory' => $memory,
-            'processes' => $processes,
-            'max_jobs' => $maxJobs,
-            'max_time' => $maxTime,
-        ];
-    }
-
-    /**
-     * Configure a single queue interactively.
+     * Configure a single queue interactively (legacy method).
      */
     protected function configureQueue(string $queueName, array $queueInfo, array $globalDefaults = [], bool $useSimplified = false): array
     {
-        info("Configuring queue: {$queueName}");
-
-        if (! empty($queueInfo['jobs'])) {
-            $this->line('Job classes using this queue:');
-            foreach (array_slice($queueInfo['jobs'], 0, 5) as $job) {
-                $this->line("  • {$job}");
-            }
-            if (count($queueInfo['jobs']) > 5) {
-                $this->line('  • ... and ' . (count($queueInfo['jobs']) - 5) . ' more');
-            }
-        }
-
         // Get suggested defaults
         $suggested = $this->discoveryService->getDefaultConfigForQueue($queueName, $queueInfo);
 
@@ -390,62 +348,14 @@ class NexusConfigureCommand extends Command
             $suggested = array_merge($suggested, $globalDefaults);
         }
 
-        $processes = (int) text(
-            label: 'Number of worker processes',
-            default: (string) $suggested['processes'],
-            hint: 'More processes = higher concurrency'
-        );
-
-        if ($useSimplified) {
-            // In simplified mode, only ask for worker count and use defaults for everything else
-            return [
-                'queue' => $queueName,
-                'connection' => $suggested['connection'],
-                'tries' => $suggested['tries'],
-                'timeout' => $suggested['timeout'],
-                'sleep' => $suggested['sleep'],
-                'memory' => $suggested['memory'],
-                'processes' => $processes,
-                'max_jobs' => $suggested['max_jobs'],
-                'max_time' => $suggested['max_time'],
-            ];
-        }
-
-        // Full configuration mode
-        $allowOverride = ! empty($globalDefaults) ? confirm('Override global defaults for this queue?', false) : true;
-
-        $timeout = $suggested['timeout'];
-        $memory = $suggested['memory'];
-        $tries = $suggested['tries'];
-
-        if ($allowOverride || empty($globalDefaults)) {
-            $timeout = (int) text(
-                label: 'Timeout per job (seconds)',
-                default: (string) $suggested['timeout'],
-                hint: 'How long a job can run before timing out'
-            );
-
-            $memory = (int) text(
-                label: 'Memory limit per worker (MB)',
-                default: (string) $suggested['memory'],
-                hint: 'Worker will restart after hitting this limit'
-            );
-
-            $tries = (int) text(
-                label: 'Max retry attempts',
-                default: (string) $suggested['tries'],
-                hint: 'Number of times to retry failed jobs'
-            );
-        }
-
         return [
             'queue' => $queueName,
             'connection' => $suggested['connection'],
-            'tries' => $tries,
-            'timeout' => $timeout,
+            'tries' => $suggested['tries'],
+            'timeout' => $suggested['timeout'],
             'sleep' => $suggested['sleep'],
-            'memory' => $memory,
-            'processes' => $processes,
+            'memory' => $suggested['memory'],
+            'processes' => $suggested['processes'],
             'max_jobs' => $suggested['max_jobs'],
             'max_time' => $suggested['max_time'],
         ];
