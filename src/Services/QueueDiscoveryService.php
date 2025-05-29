@@ -452,7 +452,7 @@ final class QueueDiscoveryService
         // Skip commented out lines
         $lines = explode("\n", $content);
         $filteredContent = collect($lines)
-            ->filter(fn($line) => !preg_match('/^\s*\/\//', trim($line)))
+            ->filter(fn ($line) => ! preg_match('/^\s*\/\//', trim($line)))
             ->implode("\n");
 
         // 1. Look for public $queue property declaration

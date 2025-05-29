@@ -2,8 +2,43 @@
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/jamesjulius/laravel-nexus.svg?style=flat-square)](https://packagist.org/packages/jamesjulius/laravel-nexus)
 [![Total Downloads](https://img.shields.io/packagist/dt/jamesjulius/laravel-nexus.svg?style=flat-square)](https://packagist.org/packages/jamesjulius/laravel-nexus)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/jamesjulius/laravel-nexus/ci.yml?branch=main&label=tests&style=flat-square)](https://github.com/jamesjulius/laravel-nexus/actions?query=workflow%3Aci+branch%3Amain)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/jamesjulius/laravel-nexus/ci.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/jamesjulius/laravel-nexus/actions?query=workflow%3Aci+branch%3Amain)
+[![License](https://img.shields.io/packagist/l/jamesjulius/laravel-nexus.svg?style=flat-square)](https://packagist.org/packages/jamesjulius/laravel-nexus)
 
 **Laravel Nexus** is your central hub for queue worker management. It automatically discovers your queues, provides interactive configuration, and manages multiple workers with beautiful real-time logging and hot reload capabilities.
+
+## 🤔 Why Laravel Nexus?
+
+**Tired of this?** 😤
+
+```bash
+# The daily struggle with complex Laravel apps...
+php artisan queue:work --queue=default &
+php artisan queue:work --queue=broadcasting --timeout=30 &
+php artisan queue:work --queue=mail --timeout=120 &
+php artisan queue:work --queue=notifications --sleep=1 &
+php artisan queue:work --queue=edi-processing --timeout=300 --memory=256 &
+php artisan queue:work --queue=payments --tries=5 &
+
+# ...and trying to manage/monitor them all locally! 😵‍💫
+```
+
+**Laravel Nexus was born from this exact frustration!**
+
+Instead of juggling multiple terminal windows and remembering different queue configurations, Laravel Nexus lets you:
+
+✨ **Run ONE command** to manage ALL your queues
+🔍 **Auto-discover** all queues in your app
+⚙️ **Configure once**, run everywhere
+📺 **Monitor everything** in one beautiful interface
+
+```bash
+# The Laravel Nexus way ✨
+php artisan nexus:work --log
+```
+
+**That's it!** All your queues running with optimized settings, beautiful logs, and zero mental overhead.
 
 ## ✨ Features
 
@@ -15,6 +50,30 @@
 - 🔄 **Auto-restart** - Responds to Laravel's `queue:restart` signals
 - 📊 **Smart Defaults** - Optimized settings based on queue type
 - 🚀 **Production Ready** - Built for reliability and performance
+- ✅ **Thoroughly Tested** - Comprehensive test suite with 31 tests covering all functionality
+
+## 🧪 Testing & Quality
+
+Laravel Nexus is thoroughly tested with a comprehensive test suite:
+
+- **31 Tests** covering all package functionality
+- **Unit Tests** for core services and queue discovery
+- **Feature Tests** for all commands and workflows
+- **Architecture Tests** ensuring code quality and standards
+- **CI/CD Pipeline** testing against PHP 8.1, 8.2, 8.3 and Laravel 10.x, 11.x, 12.x
+- **Code Style** enforcement with Laravel Pint
+- **Security Auditing** with automated dependency scanning
+
+```bash
+# Run the test suite
+composer test
+
+# Check code formatting
+composer format-test
+
+# Auto-fix code style
+composer format
+```
 
 ## Installation
 
@@ -353,6 +412,40 @@ php artisan nexus:work --restart
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/jamesjulius/laravel-nexus.git
+cd laravel-nexus
+
+# Install dependencies
+composer install
+
+# Run tests
+composer test
+
+# Check code style
+composer format-test
+
+# Fix code style
+composer format
+```
+
+### Testing Guidelines
+
+- All new features must include tests
+- Tests should cover both success and failure scenarios
+- Run the full test suite before submitting PRs
+- Follow the existing test patterns and structure
+
+### Pull Request Process
+
+1. Ensure all tests pass: `composer test`
+2. Ensure code style compliance: `composer format-test`
+3. Update documentation if needed
+4. Submit PR with clear description of changes
 
 ## License
 
