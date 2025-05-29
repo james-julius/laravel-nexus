@@ -31,6 +31,8 @@ Thumbs.db
 /coverage.xml
 /.phpunit.cache
 /phpunit.xml
+clover.xml
+coverage.xml
 
 # Build artifacts
 /build/

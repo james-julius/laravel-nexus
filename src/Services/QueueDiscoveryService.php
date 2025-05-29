@@ -5,7 +5,7 @@ namespace JamesJulius\LaravelNexus\Services;
 use Illuminate\Support\Facades\File;
 use ReflectionClass;
 
-class QueueDiscoveryService
+final class QueueDiscoveryService
 {
     /**
      * Discover all queues used by job classes in the application.
@@ -133,7 +133,7 @@ class QueueDiscoveryService
         $className = $classMatches[1] ?? '';
 
         if ($className) {
-            return $namespace ? $namespace.'\\'.$className : $className;
+            return $namespace ? $namespace . '\\' . $className : $className;
         }
 
         return null;
@@ -440,5 +440,41 @@ class QueueDiscoveryService
         } catch (\Exception $e) {
             return 'Unknown';
         }
+    }
+
+    /**
+     * Extract queue names from file content using regex patterns.
+     */
+    public function extractQueuesFromContent(string $content): array
+    {
+        $queues = [];
+
+        // Skip commented out lines
+        $lines = explode("\n", $content);
+        $filteredContent = collect($lines)
+            ->filter(fn($line) => !preg_match('/^\s*\/\//', trim($line)))
+            ->implode("\n");
+
+        // 1. Look for public $queue property declaration
+        if (preg_match_all('/public\s+\$queue\s*=\s*[\'"]([^\'"]+)[\'"]/', $filteredContent, $matches)) {
+            $queues = array_merge($queues, $matches[1]);
+        }
+
+        // 2. Look for $this->queue assignment
+        if (preg_match_all('/\$this->queue\s*=\s*[\'"]([^\'"]+)[\'"]/', $filteredContent, $matches)) {
+            $queues = array_merge($queues, $matches[1]);
+        }
+
+        // 3. Look for onQueue() method calls
+        if (preg_match_all('/->onQueue\([\'"]([^\'"]+)[\'"]\)/', $filteredContent, $matches)) {
+            $queues = array_merge($queues, $matches[1]);
+        }
+
+        // 4. Look for broadcastQueue() method returns
+        if (preg_match_all('/return\s*[\'"]([^\'"]+)[\'"]/', $filteredContent, $matches)) {
+            $queues = array_merge($queues, $matches[1]);
+        }
+
+        return array_unique($queues);
     }
 }
