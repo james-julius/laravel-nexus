@@ -73,7 +73,7 @@ class NexusConfigureCommand extends Command
             return 0;
         }
 
-        info('📋 Discovered Queues:');
+        info('📋 Queue Discovery Results:');
 
         // Prepare table data
         $tableData = [];
@@ -121,7 +121,7 @@ class NexusConfigureCommand extends Command
         })->toArray();
 
         // Add "Select All" option at the top for convenience
-        $allQueuesOption = ['__ALL__' => '🎯 Select All Queues ('.count($queueOptions).' total)'];
+        $allQueuesOption = ['__ALL__' => '🎯 Select All Queues (' . count($queueOptions) . ' total)'];
         $selectOptions = $allQueuesOption + $queueOptions;
 
         info('📋 Queue Selection:');
@@ -140,11 +140,11 @@ class NexusConfigureCommand extends Command
         // Handle "Select All" option
         if (in_array('__ALL__', $selected)) {
             $selectedQueues = array_keys($queueOptions);
-            info('✅ Selected all '.count($selectedQueues).' queues');
+            info('✅ Selected all ' . count($selectedQueues) . ' queues');
         } else {
             $selectedQueues = array_filter($selected, fn ($item) => $item !== '__ALL__');
             if (! empty($selectedQueues)) {
-                info('✅ Selected '.count($selectedQueues).' queue(s): '.implode(', ', $selectedQueues));
+                info('✅ Selected ' . count($selectedQueues) . ' queue(s): ' . implode(', ', $selectedQueues));
             }
         }
 
@@ -167,7 +167,7 @@ class NexusConfigureCommand extends Command
         // Show final configuration
         info('📝 Final Configuration:');
         foreach ($configurations as $name => $config) {
-            $this->line("<info>{$name}:</info> {$config['processes']} process(es), ".
+            $this->line("<info>{$name}:</info> {$config['processes']} process(es), " .
                        "timeout: {$config['timeout']}s, memory: {$config['memory']}MB");
         }
 
@@ -200,7 +200,7 @@ class NexusConfigureCommand extends Command
                 $this->line("  • {$job}");
             }
             if (count($queueInfo['jobs']) > 5) {
-                $this->line('  • ... and '.(count($queueInfo['jobs']) - 5).' more');
+                $this->line('  • ... and ' . (count($queueInfo['jobs']) - 5) . ' more');
             }
         }
 

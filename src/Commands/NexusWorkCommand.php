@@ -306,7 +306,7 @@ class NexusWorkCommand extends Command
         $pids = $this->loadPids();
 
         if (empty($pids)) {
-            $this->info('No running workers found.');
+            $this->info('No worker processes found to stop.');
 
             return 0;
         }
@@ -324,8 +324,7 @@ class NexusWorkCommand extends Command
         }
 
         $this->info('✅ All workers stopped');
-
-        return 0;
+        exit(0);
     }
 
     /**
@@ -344,15 +343,16 @@ class NexusWorkCommand extends Command
      */
     protected function showStatus(): int
     {
+        $this->info('📊 Worker Status:');
+
         $pids = $this->loadPids();
 
         if (empty($pids)) {
-            $this->info('No queue workers are currently running.');
+            $this->line('No queue workers are currently running.');
 
             return 0;
         }
 
-        $this->info('📊 Queue Worker Status:');
         $this->table(
             ['Worker', 'PID', 'Status', 'Memory (MB)', 'Uptime'],
             collect($pids)->map(function ($pid, $name) {

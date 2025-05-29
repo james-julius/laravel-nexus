@@ -16,9 +16,15 @@ class NexusServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/nexus.php', 'nexus');
+        $this->mergeConfigFrom(__DIR__ . '/../config/nexus.php', 'nexus');
 
         $this->app->singleton(QueueDiscoveryService::class);
+
+        // Register commands individually so they can be resolved
+        $this->app->singleton(NexusConfigureCommand::class);
+        $this->app->singleton(NexusWorkCommand::class);
+        $this->app->singleton(NexusHelpCommand::class);
+        $this->app->singleton(NexusPublishCommand::class);
 
         $this->commands([
             NexusConfigureCommand::class,
@@ -35,11 +41,11 @@ class NexusServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../config/nexus.php' => config_path('nexus.php'),
+                __DIR__ . '/../config/nexus.php' => config_path('nexus.php'),
             ], 'nexus-config');
 
             $this->publishes([
-                __DIR__.'/../config/nexus.php' => config_path('nexus.php'),
+                __DIR__ . '/../config/nexus.php' => config_path('nexus.php'),
             ], 'laravel-nexus');
         }
     }

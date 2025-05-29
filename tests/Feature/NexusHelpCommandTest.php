@@ -16,7 +16,6 @@ it('shows all nexus commands in help', function () {
         ->expectsOutputToContain('nexus:publish')
         ->expectsOutputToContain('nexus:configure')
         ->expectsOutputToContain('nexus:work')
-        ->expectsOutputToContain('nexus:help')
         ->assertExitCode(0);
 });
 

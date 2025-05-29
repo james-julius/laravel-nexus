@@ -7,7 +7,7 @@ it('can check worker status', function () {
 
 it('can stop workers', function () {
     $this->artisan('nexus:work --stop')
-        ->expectsOutputToContain('No worker processes found to stop')
+        ->expectsOutputToContain('No worker processes found to stop.')
         ->assertExitCode(0);
 });
 
@@ -19,6 +19,6 @@ it('validates worker name when using worker flag', function () {
 
 it('can show status with no workers running', function () {
     $this->artisan('nexus:work --status')
-        ->expectsOutputToContain('Worker Status')
+        ->expectsOutputToContain('No queue workers are currently running.')
         ->assertExitCode(0);
 });
