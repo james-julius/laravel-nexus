@@ -60,7 +60,7 @@ Laravel Nexus is thoroughly tested with a comprehensive test suite:
 - **Unit Tests** for core services and queue discovery
 - **Feature Tests** for all commands and workflows
 - **Architecture Tests** ensuring code quality and standards
-- **CI/CD Pipeline** testing against PHP 8.1, 8.2, 8.3 and Laravel 10.x, 11.x, 12.x
+- **CI/CD Pipeline** testing against PHP 8.1, 8.2, 8.3, 8.4 and Laravel 10.x, 11.x, 12.x
 - **Code Style** enforcement with Laravel Pint
 - **Security Auditing** with automated dependency scanning
 
