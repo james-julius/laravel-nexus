@@ -121,7 +121,7 @@ class NexusConfigureCommand extends Command
         })->toArray();
 
         // Add "Select All" option at the top for convenience
-        $allQueuesOption = ['__ALL__' => '🎯 Select All Queues ('.count($queueOptions).' total)'];
+        $allQueuesOption = ['__ALL__' => '🎯 Select All Queues (' . count($queueOptions) . ' total)'];
         $selectOptions = $allQueuesOption + $queueOptions;
 
         info('📋 Queue Selection:');
@@ -140,11 +140,11 @@ class NexusConfigureCommand extends Command
         // Handle "Select All" option
         if (in_array('__ALL__', $selected)) {
             $selectedQueues = array_keys($queueOptions);
-            info('✅ Selected all '.count($selectedQueues).' queues');
+            info('✅ Selected all ' . count($selectedQueues) . ' queues');
         } else {
             $selectedQueues = array_filter($selected, fn ($item) => $item !== '__ALL__');
             if (! empty($selectedQueues)) {
-                info('✅ Selected '.count($selectedQueues).' queue(s): '.implode(', ', $selectedQueues));
+                info('✅ Selected ' . count($selectedQueues) . ' queue(s): ' . implode(', ', $selectedQueues));
             }
         }
 
@@ -181,8 +181,8 @@ class NexusConfigureCommand extends Command
                 // Remove the consolidated queues from selectedQueues
                 $selectedQueues = array_diff($selectedQueues, $queuesToConsolidate);
                 $selectedQueues = array_values($selectedQueues); // Reindex array to avoid issues
-                info('✅ Consolidated '.implode(', ', $selectedConsolidationQueues).' into default queue');
-                info('📋 Remaining queues to configure: '.implode(', ', $selectedQueues));
+                info('✅ Consolidated ' . implode(', ', $selectedConsolidationQueues) . ' into default queue');
+                info('📋 Remaining queues to configure: ' . implode(', ', $selectedQueues));
                 $this->newLine();
             }
         }
@@ -202,7 +202,7 @@ class NexusConfigureCommand extends Command
                 $extraProcesses = count($selectedConsolidationQueues);
                 $suggested['processes'] = $suggested['processes'] + $extraProcesses;
 
-                info("Queue: {$queueName} (+ consolidated: ".implode(', ', $selectedConsolidationQueues).')');
+                info("Queue: {$queueName} (+ consolidated: " . implode(', ', $selectedConsolidationQueues) . ')');
                 $this->line('💡 Suggested process count increased to handle consolidated queues');
             } else {
                 info("Queue: {$queueName}");
@@ -214,7 +214,7 @@ class NexusConfigureCommand extends Command
                     $this->line("  • {$job}");
                 }
                 if (count($queue['jobs']) > 3) {
-                    $this->line('  • ... and '.(count($queue['jobs']) - 3).' more');
+                    $this->line('  • ... and ' . (count($queue['jobs']) - 3) . ' more');
                 }
             }
 
@@ -308,12 +308,12 @@ class NexusConfigureCommand extends Command
         // Show final configuration
         info('📝 Final Configuration:');
         foreach ($configurations as $name => $config) {
-            $configLine = "<info>{$name}:</info> {$config['processes']} process(es), ".
+            $configLine = "<info>{$name}:</info> {$config['processes']} process(es), " .
                          "timeout: {$config['timeout']}s, memory: {$config['memory']}MB";
 
             // Add note about consolidated queues
             if ($name === 'default' && $shouldConsolidate && ! empty($selectedConsolidationQueues)) {
-                $configLine .= ' (+ handling: '.implode(', ', $selectedConsolidationQueues).')';
+                $configLine .= ' (+ handling: ' . implode(', ', $selectedConsolidationQueues) . ')';
             }
 
             $this->line($configLine);

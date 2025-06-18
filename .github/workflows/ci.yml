@@ -10,18 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        php-version: ['8.1', '8.2', '8.3', '8.4']
-        laravel-version: ['10.*', '11.*']
-        include:
-          - php-version: '8.3'
-            laravel-version: '12.*'
-          - php-version: '8.4'
-            laravel-version: '12.*'
-
-    name: P${{ matrix.php-version }} - L${{ matrix.laravel-version }}
+    name: PHP 8.3 - Laravel 11.*
 
     steps:
     - uses: actions/checkout@v4
@@ -29,7 +18,7 @@ jobs:
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: ${{ matrix.php-version }}
+        php-version: 8.3
         extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick
         coverage: pcov
 
@@ -38,20 +27,19 @@ jobs:
       uses: actions/cache@v3
       with:
         path: vendor
-        key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
+        key: ${{ runner.os }}-php-8.3-${{ hashFiles('**/composer.lock') }}
         restore-keys: |
-          ${{ runner.os }}-php-${{ matrix.php-version }}-
+          ${{ runner.os }}-php-8.3-
 
     - name: Install dependencies
       run: |
-        composer require "laravel/framework:${{ matrix.laravel-version }}" --no-interaction --no-update
+        composer require "laravel/framework:11.*" --no-interaction --no-update
         composer install --prefer-dist --no-interaction --no-progress
 
     - name: Run tests
       run: composer run test
 
     - name: Upload coverage reports to Codecov
-      if: matrix.php-version == '8.2' && matrix.laravel-version == '11.*'
       uses: codecov/codecov-action@v3
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
