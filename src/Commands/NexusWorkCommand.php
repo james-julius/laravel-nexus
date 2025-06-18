@@ -13,9 +13,10 @@ class NexusWorkCommand extends Command
      * The name and signature of the console command.
      */
     protected $signature = 'nexus:work
-                            {--log : Stream worker logs in real-time}
+                            {--log : Stream worker logs in real-time (default behavior)}
                             {--watch : Watch for file changes and auto-reload workers}
                             {--detailed : Enable detailed logging with job IDs and dates}
+                            {--verbose : Enable verbose logging with full Laravel output}
                             {--stop : Stop all running queue workers}
                             {--restart : Restart all queue workers}
                             {--status : Show status of running workers}
@@ -24,7 +25,7 @@ class NexusWorkCommand extends Command
     /**
      * The console command description.
      */
-    protected $description = 'Start and manage Laravel Nexus queue workers';
+    protected $description = 'Start and manage Laravel Nexus queue workers with live log streaming';
 
     /**
      * Array to store running processes.
@@ -67,10 +68,6 @@ class NexusWorkCommand extends Command
             return $this->watchForChanges();
         }
 
-        if ($this->option('log') || $this->option('detailed')) {
-            return $this->streamLogs();
-        }
-
         if ($this->option('stop')) {
             return $this->stopWorkers();
         }
@@ -83,7 +80,8 @@ class NexusWorkCommand extends Command
             return $this->showStatus();
         }
 
-        return $this->startWorkers();
+        // Default behavior is now to stream logs
+        return $this->streamLogs();
     }
 
     /**
@@ -249,8 +247,8 @@ class NexusWorkCommand extends Command
             $command[] = '--verbose';
         }
 
-        // Add verbose output if in log, watch, or detailed mode
-        if ($this->option('log') || $this->option('watch') || $this->option('detailed')) {
+        // Add verbose output if in verbose, watch, or detailed mode
+        if ($this->option('verbose') || $this->option('watch') || $this->option('detailed')) {
             $command[] = '--verbose';
         }
 
@@ -322,8 +320,8 @@ class NexusWorkCommand extends Command
         // Start new process
         $command = $this->buildWorkerCommand($worker['config'], $name);
 
-        // Add verbose output if in log, watch, or detailed mode
-        if ($this->option('log') || $this->option('watch') || $this->option('detailed')) {
+        // Add verbose output if in verbose, watch, or detailed mode
+        if ($this->option('verbose') || $this->option('watch') || $this->option('detailed')) {
             $command[] = '--verbose';
         }
 
@@ -855,7 +853,25 @@ class NexusWorkCommand extends Command
             $prefix = "[{$timestamp}] [{$workerName}]";
             $coloredPrefix = "<fg={$color}>{$prefix}</>";
 
-            // Apply color coding to job statuses
+            // If not in verbose mode, show simplified job processing logs
+            if (! $this->option('verbose')) {
+                $simplifiedLine = $this->simplifyJobLog($line);
+                if ($simplifiedLine !== null) {
+                    if ($type === 'error') {
+                        $this->line("{$coloredPrefix} <fg=red>{$simplifiedLine}</>");
+                    } else {
+                        $this->line("{$coloredPrefix} {$simplifiedLine}");
+                    }
+
+                    continue;
+                }
+                // Skip non-job related logs in non-verbose mode
+                if (! $this->isImportantLogLine($line)) {
+                    continue;
+                }
+            }
+
+            // Apply color coding to job statuses (verbose mode)
             $enhancedLine = $this->colorizeJobStatuses($line);
 
             // Extract job ID if in detailed mode and job processing is detected
@@ -942,6 +958,74 @@ class NexusWorkCommand extends Command
         $hash = crc32($workerName);
 
         return $colors[abs($hash) % count($colors)];
+    }
+
+    /**
+     * Simplify job log line to show only job name and ID.
+     */
+    protected function simplifyJobLog(string $line): ?string
+    {
+        // Match job processing patterns
+        if (preg_match('/Processing:\s+(.+?)(\s+\[|$)/', $line, $matches)) {
+            $jobClass = basename(str_replace('\\', '/', $matches[1]));
+
+            return "Processing: <fg=cyan>{$jobClass}</>";
+        }
+
+        // Match job processed patterns
+        if (preg_match('/Processed:\s+(.+?)(\s+\[|$)/', $line, $matches)) {
+            $jobClass = basename(str_replace('\\', '/', $matches[1]));
+
+            return "Processed: <fg=green>{$jobClass}</>";
+        }
+
+        // Match job failed patterns
+        if (preg_match('/Failed:\s+(.+?)(\s+\[|$)/', $line, $matches)) {
+            $jobClass = basename(str_replace('\\', '/', $matches[1]));
+
+            return "Failed: <fg=red>{$jobClass}</>";
+        }
+
+        // Match job ID patterns for detailed info
+        if ($this->option('detailed') && preg_match('/(\w+)\s+([a-f0-9-]{36})\s+(RUNNING|DONE|FAILED)/', $line, $matches)) {
+            $jobClass = $matches[1];
+            $jobId = substr($matches[2], 0, 8);
+            $status = $matches[3];
+
+            $statusColor = match ($status) {
+                'RUNNING' => 'yellow',
+                'DONE' => 'green',
+                'FAILED' => 'red',
+                default => 'white'
+            };
+
+            return "<fg=cyan>{$jobClass}</> <fg=blue>[{$jobId}]</> <fg={$statusColor}>{$status}</>";
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a log line is important enough to show in non-verbose mode.
+     */
+    protected function isImportantLogLine(string $line): bool
+    {
+        // Show error messages
+        if (preg_match('/\b(error|exception|failed|fatal)\b/i', $line)) {
+            return true;
+        }
+
+        // Show worker start/stop messages
+        if (preg_match('/\b(worker|started|stopped|restarted)\b/i', $line)) {
+            return true;
+        }
+
+        // Show memory warnings
+        if (preg_match('/\b(memory|limit|exceeded)\b/i', $line)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
