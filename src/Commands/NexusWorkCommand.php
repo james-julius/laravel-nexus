@@ -628,8 +628,8 @@ class NexusWorkCommand extends Command
         $fileHashes = $this->getFileHashes();
 
         while (true) {
-            // Check for restart signal every 5 seconds
-            if (time() - $lastRestartCheck > 5) {
+            // Check for restart signal every 3 seconds
+            if (time() - $lastRestartCheck > 3) {
                 if ($this->shouldRestart()) {
                     $this->info("\n🔄 Restart signal detected, restarting workers...");
                     $this->restartAllProcesses();
@@ -637,8 +637,8 @@ class NexusWorkCommand extends Command
                 $lastRestartCheck = time();
             }
 
-            // Check for file changes every 2 seconds
-            if (time() - $lastFileCheck > 2) {
+            // Check for file changes every 1 second
+            if (time() - $lastFileCheck > 1) {
                 $currentHashes = $this->getFileHashes();
                 $changedFiles = $this->getChangedFiles($fileHashes, $currentHashes);
 
@@ -686,7 +686,7 @@ class NexusWorkCommand extends Command
                 pcntl_signal_dispatch();
             }
 
-            usleep(200000); // Sleep 200ms to prevent excessive CPU usage
+            usleep(100000); // Sleep 100ms for faster responsiveness
         }
     }
 
