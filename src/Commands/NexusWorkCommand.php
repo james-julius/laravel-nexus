@@ -16,7 +16,6 @@ class NexusWorkCommand extends Command
                             {--log : Stream worker logs in real-time (default behavior)}
                             {--watch : Watch for file changes and auto-reload workers}
                             {--detailed : Enable detailed logging with job IDs and dates}
-                            {--verbose : Enable verbose logging with full Laravel output}
                             {--stop : Stop all running queue workers}
                             {--restart : Restart all queue workers}
                             {--status : Show status of running workers}
@@ -128,7 +127,7 @@ class NexusWorkCommand extends Command
             if (! isset($this->config['workers'][$workerName])) {
                 $this->error("Worker configuration not found for: {$workerName}");
                 $availableWorkers = array_keys($this->config['workers']);
-                $this->line('Available workers: ' . implode(', ', $availableWorkers));
+                $this->line('Available workers: '.implode(', ', $availableWorkers));
 
                 return 1;
             }
@@ -148,7 +147,7 @@ class NexusWorkCommand extends Command
             return 1;
         }
 
-        $this->info('✅ Started ' . count($this->processes) . ' queue workers');
+        $this->info('✅ Started '.count($this->processes).' queue workers');
         $this->displayWorkerTable();
 
         // Save process IDs
@@ -181,7 +180,7 @@ class NexusWorkCommand extends Command
             try {
                 $command = $this->buildWorkerCommand($config, $processName);
 
-                $this->line('  🔧 Command: <comment>' . implode(' ', array_slice($command, 0, 5)) . '...</comment>');
+                $this->line('  🔧 Command: <comment>'.implode(' ', array_slice($command, 0, 5)).'...</comment>');
 
                 $process = new SymfonyProcess($command);
                 $process->setTimeout(null);
@@ -189,7 +188,7 @@ class NexusWorkCommand extends Command
 
                 if (! $process->isRunning()) {
                     $this->error("❌ Failed to start worker: {$processName}");
-                    $this->line('Error output: ' . $process->getErrorOutput());
+                    $this->line('Error output: '.$process->getErrorOutput());
 
                     continue;
                 }
@@ -203,7 +202,7 @@ class NexusWorkCommand extends Command
 
                 $this->line("  → Started worker: <info>{$processName}</info> (PID: {$process->getPid()})");
             } catch (\Exception $e) {
-                $this->error("❌ Exception starting worker {$processName}: " . $e->getMessage());
+                $this->error("❌ Exception starting worker {$processName}: ".$e->getMessage());
             }
         }
     }
@@ -232,14 +231,14 @@ class NexusWorkCommand extends Command
             'artisan',
             'queue:work',
             $config['connection'],
-            '--queue=' . $config['queue'],
-            '--tries=' . $config['tries'],
-            '--timeout=' . $config['timeout'],
-            '--sleep=' . $config['sleep'],
-            '--memory=' . $config['memory'],
-            '--max-jobs=' . $config['max_jobs'],
-            '--max-time=' . $config['max_time'],
-            '--name=' . ($this->config['prefix'] ?? 'nexus') . ':' . $processName,
+            '--queue='.$config['queue'],
+            '--tries='.$config['tries'],
+            '--timeout='.$config['timeout'],
+            '--sleep='.$config['sleep'],
+            '--memory='.$config['memory'],
+            '--max-jobs='.$config['max_jobs'],
+            '--max-time='.$config['max_time'],
+            '--name='.($this->config['prefix'] ?? 'nexus').':'.$processName,
         ];
 
         // Add environment-specific options
@@ -439,7 +438,7 @@ class NexusWorkCommand extends Command
                 $config['queue'],
                 $config['connection'],
                 $worker['process']->getPid(),
-                $config['timeout'] . 's',
+                $config['timeout'].'s',
                 $config['tries'],
             ];
         }
@@ -572,11 +571,11 @@ class NexusWorkCommand extends Command
         $seconds = $uptimeSeconds - ($starttime / $clockTicks);
 
         if ($seconds < 60) {
-            return round($seconds) . 's';
+            return round($seconds).'s';
         } elseif ($seconds < 3600) {
-            return round($seconds / 60) . 'm';
+            return round($seconds / 60).'m';
         } else {
-            return round($seconds / 3600, 1) . 'h';
+            return round($seconds / 3600, 1).'h';
         }
     }
 
@@ -606,7 +605,7 @@ class NexusWorkCommand extends Command
             $this->startWorkerWithLogging($name, $config);
         }
 
-        $this->info('✅ Started ' . count($this->processes) . ' queue workers with file watching');
+        $this->info('✅ Started '.count($this->processes).' queue workers with file watching');
         $this->info('👁️  Watching for file changes... (Press Ctrl+C to stop)');
         $this->line(''); // Empty line for separation
 
@@ -649,7 +648,7 @@ class NexusWorkCommand extends Command
                         $this->line("   → {$file}");
                     }
                     if (count($changedFiles) > 3) {
-                        $this->line('   → ... and ' . (count($changedFiles) - 3) . ' more files');
+                        $this->line('   → ... and '.(count($changedFiles) - 3).' more files');
                     }
                     $this->info('🚀 Reloading workers...');
                     $this->restartAllProcesses();
@@ -718,7 +717,7 @@ class NexusWorkCommand extends Command
 
             foreach ($iterator as $file) {
                 if ($file->isFile() && in_array($file->getExtension(), ['php', 'env'])) {
-                    $relativePath = str_replace(base_path() . '/', '', $file->getPathname());
+                    $relativePath = str_replace(base_path().'/', '', $file->getPathname());
                     $hashes[$relativePath] = filemtime($file->getPathname());
                 }
             }
@@ -744,7 +743,7 @@ class NexusWorkCommand extends Command
         // Check for deleted files
         foreach ($oldHashes as $file => $hash) {
             if (! isset($newHashes[$file])) {
-                $changed[] = $file . ' (deleted)';
+                $changed[] = $file.' (deleted)';
             }
         }
 
@@ -935,7 +934,7 @@ class NexusWorkCommand extends Command
                 $payload = json_decode($matches[2], true);
                 if (isset($payload['id'])) {
                     $jobId = substr($payload['id'], 0, 8); // Show first 8 chars of job ID
-                    $line = preg_replace('/(\[.*?\]\s+)/', '$1<fg=blue>[ID:' . $jobId . ']</> ', $line);
+                    $line = preg_replace('/(\[.*?\]\s+)/', '$1<fg=blue>[ID:'.$jobId.']</> ', $line);
                 }
             }
         }
@@ -1054,7 +1053,7 @@ class NexusWorkCommand extends Command
             $this->startWorkerWithLogging($name, $config);
         }
 
-        $this->info('✅ Started ' . count($this->processes) . ' queue workers with log streaming');
+        $this->info('✅ Started '.count($this->processes).' queue workers with log streaming');
         $this->info('📺 Streaming logs... (Press Ctrl+C to stop)');
         $this->line(''); // Empty line for separation
 
