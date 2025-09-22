@@ -13,7 +13,6 @@ class NexusWorkCommand extends Command
      * The name and signature of the console command.
      */
     protected $signature = 'nexus:work
-                            {--log : Stream worker logs in real-time (default behavior)}
                             {--watch : Watch for file changes and auto-reload workers}
                             {--detailed : Enable detailed logging with job IDs and dates}
                             {--stop : Stop all running queue workers}
@@ -24,7 +23,7 @@ class NexusWorkCommand extends Command
     /**
      * The console command description.
      */
-    protected $description = 'Start and manage Laravel Nexus queue workers with live log streaming';
+    protected $description = 'Start and manage Laravel Nexus queue workers with live log streaming (default behavior)';
 
     /**
      * Array to store running processes.
@@ -79,8 +78,8 @@ class NexusWorkCommand extends Command
             return $this->showStatus();
         }
 
-        // Default behavior is now to stream logs
-        return $this->streamLogs();
+        // Default behavior is to start workers with log streaming
+        return $this->startWorkers();
     }
 
     /**
@@ -106,8 +105,8 @@ class NexusWorkCommand extends Command
         }
 
         // Show helpful hint about available options on first run
-        if (! $this->option('log') && ! $this->option('watch')) {
-            $this->line('💡 <comment>Tip:</comment> Use <comment>--log</comment> for live logs, <comment>--watch</comment> for file watching + auto-reload, or <comment>--detailed</comment> for detailed job logs');
+        if (! $this->option('watch')) {
+            $this->line('💡 <comment>Tip:</comment> Use <comment>--watch</comment> for file watching + auto-reload, or <comment>--detailed</comment> for detailed job logs');
             $this->newLine();
         }
 
@@ -137,8 +136,9 @@ class NexusWorkCommand extends Command
             ? [$this->option('worker') => $this->config['workers'][$this->option('worker')]]
             : $this->config['workers'];
 
+        // Start workers with output capturing for logs
         foreach ($workerConfig as $name => $config) {
-            $this->startWorker($name, $config);
+            $this->startWorkerWithLogging($name, $config);
         }
 
         if (empty($this->processes)) {
@@ -147,14 +147,15 @@ class NexusWorkCommand extends Command
             return 1;
         }
 
-        $this->info('✅ Started '.count($this->processes).' queue workers');
-        $this->displayWorkerTable();
+        $this->info('✅ Started '.count($this->processes).' queue workers with log streaming');
+        $this->info('📺 Streaming logs... (Press Ctrl+C to stop)');
+        $this->line(''); // Empty line for separation
 
         // Save process IDs
         $this->savePids();
 
-        // Keep the manager running and monitor workers
-        $this->monitorWorkers();
+        // Monitor and stream logs
+        $this->streamWorkerLogs();
 
         return 0;
     }
@@ -1027,42 +1028,4 @@ class NexusWorkCommand extends Command
         return false;
     }
 
-    /**
-     * Stream worker logs in real-time.
-     */
-    protected function streamLogs(): int
-    {
-        $this->info('📺 Starting Laravel Nexus with live log streaming...');
-
-        // Check if workers are already running
-        if ($this->hasRunningWorkers()) {
-            $this->warn('⚠️  Queue workers are already running. Stopping them first...');
-            $this->stopWorkers();
-            sleep(2);
-        }
-
-        // Setup signal handlers for graceful shutdown
-        $this->setupSignalHandlers();
-
-        $workerConfig = $this->option('worker')
-            ? [$this->option('worker') => $this->config['workers'][$this->option('worker')]]
-            : $this->config['workers'];
-
-        // Start workers with output capturing
-        foreach ($workerConfig as $name => $config) {
-            $this->startWorkerWithLogging($name, $config);
-        }
-
-        $this->info('✅ Started '.count($this->processes).' queue workers with log streaming');
-        $this->info('📺 Streaming logs... (Press Ctrl+C to stop)');
-        $this->line(''); // Empty line for separation
-
-        // Save process IDs
-        $this->savePids();
-
-        // Monitor and stream logs
-        $this->streamWorkerLogs();
-
-        return 0;
-    }
 }
