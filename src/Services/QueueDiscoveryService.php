@@ -307,7 +307,7 @@ final class QueueDiscoveryService
                     'max_jobs' => 500,
                 ]);
 
-            case 'edi-processing':
+            case 'document-processing':
                 return array_merge($baseConfig, [
                     'timeout' => 300,
                     'memory' => 256,
