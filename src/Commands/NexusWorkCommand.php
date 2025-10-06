@@ -813,6 +813,11 @@ class NexusWorkCommand extends Command
                 $incrementalOutput = $process->getIncrementalOutput();
                 $incrementalErrorOutput = $process->getIncrementalErrorOutput();
 
+                // Debug: Show if we're getting any output at all
+                if (! empty($incrementalOutput) || ! empty($incrementalErrorOutput)) {
+                    $this->line("[DEBUG] Got output from {$name}: " . strlen($incrementalOutput) . " bytes stdout, " . strlen($incrementalErrorOutput) . " bytes stderr");
+                }
+
                 if (! empty($incrementalOutput)) {
                     $this->formatAndDisplayLog($name, $incrementalOutput, $worker['color'], 'info');
                 }
