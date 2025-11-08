@@ -242,14 +242,16 @@ class NexusWorkCommand extends Command
             '--name='.($this->config['prefix'] ?? 'nexus').':'.$processName,
         ];
 
-        // Add environment-specific options
+        // Add environment-specific options - always add verbose for log streaming
         if (app()->environment('local')) {
-            $command[] = '--verbose';
+            $command[] = '-vvv'; // Maximum verbosity in local environment
         }
 
         // Add verbose output if in verbose, watch, or detailed mode
         if ($this->option('verbose') || $this->option('watch') || $this->option('detailed')) {
-            $command[] = '--verbose';
+            $command[] = '-vvv'; // Maximum verbosity
+        } else {
+            $command[] = '--verbose'; // Standard verbosity for default log streaming
         }
 
         return $command;
@@ -762,10 +764,16 @@ class NexusWorkCommand extends Command
             $processName = $processCount > 1 ? "{$name}-{$i}" : $name;
             $command = $this->buildWorkerCommand($config, $processName);
 
-            // Add verbose output for better logging
-            $command[] = '--verbose';
+            // Add ANSI formatting
+            $command[] = '--ansi';
 
-            $process = new SymfonyProcess($command);
+            // Prepend with stdbuf to disable buffering for real-time output (if available)
+            if ($this->isStdbufAvailable()) {
+                array_unshift($command, '-oL', '-eL'); // Line buffering for stdout and stderr
+                array_unshift($command, 'stdbuf');
+            }
+
+            $process = new SymfonyProcess($command, base_path(), null, null, null);
             $process->setTimeout(null);
             $process->start();
 
@@ -809,14 +817,9 @@ class NexusWorkCommand extends Command
                     continue;
                 }
 
-                // Read incremental output
+                // Read incremental output from both stdout and stderr
                 $incrementalOutput = $process->getIncrementalOutput();
                 $incrementalErrorOutput = $process->getIncrementalErrorOutput();
-
-                // Debug: Show if we're getting any output at all
-                if (! empty($incrementalOutput) || ! empty($incrementalErrorOutput)) {
-                    $this->line("[DEBUG] Got output from {$name}: " . strlen($incrementalOutput) . " bytes stdout, " . strlen($incrementalErrorOutput) . " bytes stderr");
-                }
 
                 if (! empty($incrementalOutput)) {
                     $this->formatAndDisplayLog($name, $incrementalOutput, $worker['color'], 'info');
@@ -1031,6 +1034,22 @@ class NexusWorkCommand extends Command
         }
 
         return false;
+    }
+
+    /**
+     * Check if stdbuf command is available on the system.
+     */
+    protected function isStdbufAvailable(): bool
+    {
+        static $available = null;
+
+        if ($available === null) {
+            $process = new SymfonyProcess(['which', 'stdbuf']);
+            $process->run();
+            $available = $process->isSuccessful();
+        }
+
+        return $available;
     }
 
 }
