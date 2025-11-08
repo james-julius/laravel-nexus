@@ -902,7 +902,7 @@ class NexusWorkCommand extends Command
     {
         // Color patterns for different job statuses
         $patterns = [
-            // RUNNING/PROCESSING status - Orange
+            // RUNNING/PROCESSING status - Yellow
             '/\b(Processing|RUNNING)\b/' => '<fg=yellow;options=bold>$1</>',
 
             // SUCCESS/DONE status - Green
@@ -911,7 +911,8 @@ class NexusWorkCommand extends Command
             // FAILED/ERROR status - Red
             '/\b(Failed|FAILED|ERROR|exception|error)\b/' => '<fg=red;options=bold>$1</>',
 
-            // Job class names - Cyan
+            // Job class names - Cyan (both formats: App\Jobs\JobName and JobName)
+            '/\b(App\\\\Jobs\\\\[A-Z][a-zA-Z0-9_]*)\b/' => '<fg=cyan>$1</>',
             '/\\\\([A-Z][a-zA-Z0-9_]*Job)\b/' => '\\<fg=cyan>$1</>',
 
             // Queue names - Magenta
@@ -920,8 +921,8 @@ class NexusWorkCommand extends Command
             // Memory usage - Blue
             '/(\d+(\.\d+)?)\s*(MB|KB|GB)\b/' => '<fg=blue>$1$3</>',
 
-            // Duration/Time - Yellow
-            '/(\d+(\.\d+)?)\s*(ms|seconds?|s)\b/' => '<fg=yellow>$1$3</>',
+            // Duration/Time - Blue (format: "1s", "100ms", etc.)
+            '/\b(\d+(\.\d+)?)(ms|seconds?|s|m|h)\b/' => '<fg=blue>$1$3</>',
         ];
 
         foreach ($patterns as $pattern => $replacement) {
@@ -973,14 +974,34 @@ class NexusWorkCommand extends Command
      */
     protected function simplifyJobLog(string $line): ?string
     {
-        // Match job processing patterns
+        // Match Laravel 11+ format: "2025-11-04 16:59:53 App\Jobs\JobName  RUNNING"
+        if (preg_match('/^\s*\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+([\w\\\\]+)\s+(.+?)\s+(RUNNING|DONE)/', $line, $matches)) {
+            $jobClass = basename(str_replace('\\', '/', $matches[1]));
+            $duration = trim($matches[2]);
+            $status = $matches[3];
+
+            $statusColor = match ($status) {
+                'RUNNING' => 'yellow',
+                'DONE' => 'green',
+                default => 'white'
+            };
+
+            // Show duration only if it's not empty and status is DONE
+            if ($status === 'DONE' && !empty($duration) && $duration !== 'RUNNING') {
+                return "<fg=cyan>{$jobClass}</> <fg={$statusColor}>{$status}</> <fg=blue>{$duration}</>";
+            }
+
+            return "<fg=cyan>{$jobClass}</> <fg={$statusColor}>{$status}</>";
+        }
+
+        // Match job processing patterns (older Laravel format)
         if (preg_match('/Processing:\s+(.+?)(\s+\[|$)/', $line, $matches)) {
             $jobClass = basename(str_replace('\\', '/', $matches[1]));
 
             return "Processing: <fg=cyan>{$jobClass}</>";
         }
 
-        // Match job processed patterns
+        // Match job processed patterns (older Laravel format)
         if (preg_match('/Processed:\s+(.+?)(\s+\[|$)/', $line, $matches)) {
             $jobClass = basename(str_replace('\\', '/', $matches[1]));
 
@@ -1018,6 +1039,11 @@ class NexusWorkCommand extends Command
      */
     protected function isImportantLogLine(string $line): bool
     {
+        // Show Laravel 11+ job status lines (with timestamp and RUNNING/DONE)
+        if (preg_match('/^\s*\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+[\w\\\\]+\s+.+?\s+(RUNNING|DONE|FAILED)/', $line)) {
+            return true;
+        }
+
         // Show error messages
         if (preg_match('/\b(error|exception|failed|fatal)\b/i', $line)) {
             return true;
