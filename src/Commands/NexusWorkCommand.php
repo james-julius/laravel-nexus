@@ -229,6 +229,8 @@ class NexusWorkCommand extends Command
 
         $command = [
             PHP_BINARY,
+            '-d', 'output_buffering=Off',
+            '-d', 'implicit_flush=1',
             'artisan',
             'queue:work',
             $config['connection'],
@@ -319,15 +321,12 @@ class NexusWorkCommand extends Command
             $worker['process']->stop(10);
         }
 
-        // Start new process
-        $command = $this->buildWorkerCommand($worker['config'], $name);
+        // Start new process with same streaming setup as initial start
+        $command = $this->prepareCommandForStreaming(
+            $this->buildWorkerCommand($worker['config'], $name)
+        );
 
-        // Add verbose output if in verbose, watch, or detailed mode
-        if ($this->option('verbose') || $this->option('watch') || $this->option('detailed')) {
-            $command[] = '--verbose';
-        }
-
-        $process = new SymfonyProcess($command);
+        $process = new SymfonyProcess($command, base_path(), null, null, null);
         $process->setTimeout(null);
         $process->start();
 
@@ -762,16 +761,9 @@ class NexusWorkCommand extends Command
 
         for ($i = 1; $i <= $processCount; $i++) {
             $processName = $processCount > 1 ? "{$name}-{$i}" : $name;
-            $command = $this->buildWorkerCommand($config, $processName);
-
-            // Add ANSI formatting
-            $command[] = '--ansi';
-
-            // Prepend with stdbuf to disable buffering for real-time output (if available)
-            if ($this->isStdbufAvailable()) {
-                array_unshift($command, '-oL', '-eL'); // Line buffering for stdout and stderr
-                array_unshift($command, 'stdbuf');
-            }
+            $command = $this->prepareCommandForStreaming(
+                $this->buildWorkerCommand($config, $processName)
+            );
 
             $process = new SymfonyProcess($command, base_path(), null, null, null);
             $process->setTimeout(null);
@@ -1060,6 +1052,22 @@ class NexusWorkCommand extends Command
         }
 
         return false;
+    }
+
+    /**
+     * Prepare a worker command for real-time log streaming (ANSI + line buffering).
+     */
+    protected function prepareCommandForStreaming(array $command): array
+    {
+        $command[] = '--ansi';
+
+        // Prepend with stdbuf for line buffering when available (helps on Linux; macOS often lacks it)
+        if ($this->isStdbufAvailable()) {
+            array_unshift($command, '-oL', '-eL'); // Line buffering for stdout and stderr
+            array_unshift($command, 'stdbuf');
+        }
+
+        return $command;
     }
 
     /**
